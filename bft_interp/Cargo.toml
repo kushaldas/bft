@@ -6,4 +6,4 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bft_type = { path = "../bft_type" }
+bft_types = { path = "../bft_types" }

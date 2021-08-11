@@ -7,16 +7,16 @@ name = "bft"
 version = "0.1.0"
 dependencies = [
  "bft_interp",
- "bft_type",
+ "bft_types",
 ]
 
 [[package]]
 name = "bft_interp"
 version = "0.1.0"
 dependencies = [
- "bft_type",
+ "bft_types",
 ]
 
 [[package]]
-name = "bft_type"
+name = "bft_types"
 version = "0.1.0"
