@@ -2,6 +2,7 @@
 
 use std::convert::TryFrom;
 use std::fs;
+use std::io;
 use std::path::Path;
 
 /// Instruction enum represents each instruction from our code.
@@ -50,7 +51,12 @@ impl Program {
     /// We also strip the actual comments, and mark that in the instruction set.
     pub fn from_file<P: AsRef<Path>>(path: P) -> std::io::Result<Self> {
         let content = fs::read_to_string(&path)?;
-        let filename = path.as_ref().to_str().unwrap().to_string();
+        let filename = match path.as_ref().to_str() {
+            Some(name) => name.to_string(),
+            None => {
+                return Err(io::Error::new(io::ErrorKind::Other, "Filename not unicode"));
+            }
+        };
         Ok(Program::new(filename, &content))
     }
 
