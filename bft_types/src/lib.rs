@@ -67,4 +67,14 @@ impl Program {
             ins: only_ins,
         })
     }
+
+    /// Returns the source code filename as String
+    pub fn source_file(self) -> String {
+        self.filename
+    }
+
+    /// Rerturns a slice to the internal instructions
+    pub fn instructions(&self) -> &[Instruction] {
+        &self.ins[..]
+    }
 }
