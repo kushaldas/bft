@@ -49,23 +49,19 @@ impl Program {
     /// Takes a program path, and returns a `Program` structure holding all the instructions.
     /// We also strip the actual comments, and mark that in the instruction set.
     pub fn from_file<P: AsRef<Path>>(path: P) -> std::io::Result<Self> {
-        let contents = fs::read_to_string(&path)?;
-        let ins = contents.chars().map(Instruction::try_from).collect();
+        let content = fs::read_to_string(&path)?;
+        let filename = path.as_ref().to_str().unwrap().to_string();
+        Ok(Program::new(filename, &content))
+    }
 
-        let only_ins = match ins {
-            Ok(value) => value,
-            Err(err) => {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    err.to_string(),
-                ));
-            }
-        };
+    /// Creates a new instance of the Program structure
+    pub fn new(filename: String, content: &str) -> Self {
+        let ins = content
+            .chars()
+            .filter_map(|c| Instruction::try_from(c).ok())
+            .collect();
 
-        Ok(Program {
-            filename: path.as_ref().to_str().unwrap().to_string(),
-            ins: only_ins,
-        })
+        Program { filename, ins }
     }
 
     /// Returns the source code filename as String
