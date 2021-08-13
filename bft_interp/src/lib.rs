@@ -1,5 +1,7 @@
 //! The interpreter for the language
 
+use bft_types::Program;
+
 /// VirtualMachine holding the cells of the system
 #[derive(Debug)]
 pub struct VirtualMachine {
@@ -34,5 +36,10 @@ impl VirtualMachine {
     /// To borrow the cells
     pub fn get_cells(&self) -> &[u8] {
         &self.cells[..]
+    }
+
+    /// Executes the given program structure
+    pub fn interpret(self, prog: &Program) {
+        println!("{}", prog);
     }
 }
