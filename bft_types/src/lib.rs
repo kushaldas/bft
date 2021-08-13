@@ -1,6 +1,7 @@
 //! Instructions for the brainfuck interpreter.
 
 use std::convert::TryFrom;
+use std::fmt;
 use std::fs;
 use std::io;
 use std::path::Path;
@@ -78,5 +79,24 @@ impl Program {
     /// Rerturns a slice to the internal instructions
     pub fn instructions(&self) -> &[Instruction] {
         &self.ins[..]
+    }
+}
+
+impl fmt::Display for Program {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for ins in self.instructions() {
+            let _ = match ins {
+                Instruction::IncrementDP => write!(f, ">"),
+                Instruction::DecrementDP => write!(f, "<"),
+                Instruction::IncrementByte => write!(f, "+"),
+                Instruction::DecrementByte => write!(f, "-"),
+                Instruction::Output => write!(f, "."),
+                Instruction::Input => write!(f, ","),
+                Instruction::JumpForward => write!(f, "["),
+                Instruction::JumpBack => write!(f, "]"),
+                _ => Ok(()),
+            };
+        }
+        write!(f, "")
     }
 }
