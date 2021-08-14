@@ -7,23 +7,41 @@ use std::io;
 use std::path::Path;
 
 /// Instruction enum represents each instruction from our code.
+///
+/// This even stores any code comments as `char`. The language has
+/// 8 single byte long characters as commands/instructions.
 #[allow(dead_code)]
 #[derive(Debug, PartialEq, Eq)]
 pub enum Instruction {
+    /// Increment the data pointer (to point to the next cell to the right).
     IncrementDP,
+    /// Decrement the data pointer (to point to the next cell to the left).
     DecrementDP,
+    /// Increment (increase by one) the byte at the data pointer.
     IncrementByte,
+    /// Decrement (decrease by one) the byte at the data pointer.
     DecrementByte,
+    /// Output the byte at the data pointer.
     Output,
+    /// Accept one byte of input, storing its value in the byte at the data pointer.
     Input,
+    /// If the byte at the data pointer is zero, then instead of moving the instruction
+    /// pointer forward to the next command, jump it forward to the command after the matching `]` command.
     JumpForward,
+    /// If the byte at the data pointer is nonzero, then instead of moving the instruction
+    /// pointer forward to the next command, jump it back to the command after the matching `[` command.
     JumpBack,
+    /// Any other character on the source code.
     Comment(char),
 }
 
 impl TryFrom<char> for Instruction {
     type Error = Box<dyn std::error::Error>;
 
+    /// Converts a given `char` to the corresponding Brainfuck instruction.
+    ///
+    /// Other than the primary 8 chars, everything else is considered as comments
+    /// including newline characters.
     fn try_from(input: char) -> Result<Self, Self::Error> {
         match input {
             '>' => Ok(Instruction::IncrementDP),
@@ -39,7 +57,8 @@ impl TryFrom<char> for Instruction {
     }
 }
 
-/// Stores the full program instruction set.
+/// Stores the full program instruction set in a Vector and also the filename of the
+/// source code.
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct Program {
@@ -62,6 +81,15 @@ impl Program {
     }
 
     /// Creates a new instance of the Program structure
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use bft_types::Program;
+    ///
+    /// let code = "++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++."
+    /// let ins = Program::new("test.bf".to_string(), &code)
+    /// ```
     pub fn new(filename: String, content: &str) -> Self {
         let ins = content
             .chars()
