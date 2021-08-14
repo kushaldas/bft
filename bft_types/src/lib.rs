@@ -8,7 +8,7 @@ use std::path::Path;
 
 /// Instruction enum represents each instruction from our code.
 #[allow(dead_code)]
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Instruction {
     IncrementDP,
     DecrementDP,
@@ -98,5 +98,30 @@ impl fmt::Display for Program {
             };
         }
         write!(f, "")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{Instruction, Program};
+
+    #[test]
+    fn parse_source() {
+        let input = ">
+<+-.,
+[]"
+        .to_string();
+
+        // Now create the program
+        let p = Program::new("test.bf".to_string(), &input);
+        let ins = p.instructions();
+        assert_eq!(ins[0], Instruction::IncrementDP);
+        assert_eq!(ins[1], Instruction::Comment('\n'));
+        assert_eq!(ins[2], Instruction::DecrementDP);
+        assert_eq!(ins[3], Instruction::IncrementByte);
+        assert_eq!(ins[4], Instruction::DecrementByte);
+        assert_eq!(ins[5], Instruction::Output);
+        assert_eq!(ins[6], Instruction::Input);
+        assert_eq!(ins[7], Instruction::Comment('\n'));
     }
 }
