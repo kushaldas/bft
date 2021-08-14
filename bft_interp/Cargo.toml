@@ -7,3 +7,6 @@ edition = "2018"
 
 [dependencies]
 bft_types = { path = "../bft_types" }
+
+[lib]
+doctest = false
