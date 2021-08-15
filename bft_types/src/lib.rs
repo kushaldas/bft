@@ -12,7 +12,7 @@ type SourceInput = (usize, usize, char);
 ///
 /// This even stores any code comments as `char`. The language has
 /// 8 single byte long characters as commands/instructions. Every value
-/// also stores the line number, and the character number on the line.
+/// also stores the line number, and the column number on the line.
 #[allow(dead_code)]
 #[derive(Debug, PartialEq, Eq)]
 pub enum Instruction {
@@ -43,8 +43,7 @@ impl TryFrom<SourceInput> for Instruction {
 
     /// Converts a given `char` to the corresponding Brainfuck instruction.
     ///
-    /// Other than the primary 8 chars, everything else is considered as comments
-    /// including newline characters.
+    /// Other than the primary 8 chars, everything else is considered as comments.
     fn try_from(source: SourceInput) -> Result<Self, Self::Error> {
         match source {
             (linenumber, charnumber, '>') => Ok(Instruction::IncrementDP(linenumber, charnumber)),
@@ -103,7 +102,7 @@ impl Program {
                 line.chars() // Now for each character in the line
                     .enumerate()
                     .map(|(charnumber, ch)| {
-                        let source: SourceInput = (linenumber + 1, charnumber + 1, ch); // Create a tuple with line number, character number, and the actual character.
+                        let source: SourceInput = (linenumber + 1, charnumber + 1, ch); // Create a tuple with line number, column number, and the actual character.
                         Instruction::try_from(source).ok().unwrap()
                     })
                     .collect::<Vec<Instruction>>()
@@ -142,7 +141,7 @@ impl Program {
                     if stack.is_empty() {
                         return Err(std::io::Error::new(
                             std::io::ErrorKind::InvalidInput,
-                            format!("Extra close bracket at line {} character {}.", *l, *c),
+                            format!("Extra close bracket at line {} column {}.", *l, *c),
                         ));
                     } else {
                         stack.pop();
@@ -157,7 +156,7 @@ impl Program {
             let (l, c) = stack.pop().unwrap();
             return Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidInput,
-                format!("Extra open bracket at line {} character {}.", l, c),
+                format!("Extra open bracket at line {} column {}.", l, c),
             ));
         }
 
@@ -217,10 +216,7 @@ mod tests {
         let p = Program::new("test.bf".to_string(), &input);
         let error = p.validate().err().unwrap();
 
-        assert_eq!(
-            error.to_string(),
-            "Extra close bracket at line 2 character 1."
-        );
+        assert_eq!(error.to_string(), "Extra close bracket at line 2 column 1.");
     }
 
     #[test]
@@ -234,7 +230,7 @@ mod tests {
         let error = p.validate().err().unwrap();
         let expected = Error::new(
             ErrorKind::InvalidInput,
-            "Extra open bracket at line 2 character 2.",
+            "Extra open bracket at line 2 column 2.",
         );
         assert_eq!(error.to_string(), expected.to_string());
     }
