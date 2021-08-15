@@ -6,53 +6,58 @@ use std::fs;
 use std::io;
 use std::path::Path;
 
+type SourceInput = (usize, usize, char);
+
 /// Instruction enum represents each instruction from our code.
 ///
 /// This even stores any code comments as `char`. The language has
-/// 8 single byte long characters as commands/instructions.
+/// 8 single byte long characters as commands/instructions. Every value
+/// also stores the line number, and the character number on the line.
 #[allow(dead_code)]
 #[derive(Debug, PartialEq, Eq)]
 pub enum Instruction {
     /// Increment the data pointer (to point to the next cell to the right).
-    IncrementDP,
+    IncrementDP(usize, usize),
     /// Decrement the data pointer (to point to the next cell to the left).
-    DecrementDP,
+    DecrementDP(usize, usize),
     /// Increment (increase by one) the byte at the data pointer.
-    IncrementByte,
+    IncrementByte(usize, usize),
     /// Decrement (decrease by one) the byte at the data pointer.
-    DecrementByte,
+    DecrementByte(usize, usize),
     /// Output the byte at the data pointer.
-    Output,
+    Output(usize, usize),
     /// Accept one byte of input, storing its value in the byte at the data pointer.
-    Input,
+    Input(usize, usize),
     /// If the byte at the data pointer is zero, then instead of moving the instruction
     /// pointer forward to the next command, jump it forward to the command after the matching `]` command.
-    JumpForward,
+    JumpForward(usize, usize),
     /// If the byte at the data pointer is nonzero, then instead of moving the instruction
     /// pointer forward to the next command, jump it back to the command after the matching `[` command.
-    JumpBack,
+    JumpBack(usize, usize),
     /// Any other character on the source code.
-    Comment(char),
+    Comment(usize, usize, char),
 }
 
-impl TryFrom<char> for Instruction {
+impl TryFrom<SourceInput> for Instruction {
     type Error = Box<dyn std::error::Error>;
 
     /// Converts a given `char` to the corresponding Brainfuck instruction.
     ///
     /// Other than the primary 8 chars, everything else is considered as comments
     /// including newline characters.
-    fn try_from(input: char) -> Result<Self, Self::Error> {
-        match input {
-            '>' => Ok(Instruction::IncrementDP),
-            '<' => Ok(Instruction::DecrementDP),
-            '+' => Ok(Instruction::IncrementByte),
-            '-' => Ok(Instruction::DecrementByte),
-            '.' => Ok(Instruction::Output),
-            ',' => Ok(Instruction::Input),
-            '[' => Ok(Instruction::JumpForward),
-            ']' => Ok(Instruction::JumpBack),
-            _ => Ok(Instruction::Comment(input)),
+    fn try_from(source: SourceInput) -> Result<Self, Self::Error> {
+        match source {
+            (linenumber, charnumber, '>') => Ok(Instruction::IncrementDP(linenumber, charnumber)),
+            (linenumber, charnumber, '<') => Ok(Instruction::DecrementDP(linenumber, charnumber)),
+            (linenumber, charnumber, '+') => Ok(Instruction::IncrementByte(linenumber, charnumber)),
+            (linenumber, charnumber, '-') => Ok(Instruction::DecrementByte(linenumber, charnumber)),
+            (linenumber, charnumber, '.') => Ok(Instruction::Output(linenumber, charnumber)),
+            (linenumber, charnumber, ',') => Ok(Instruction::Input(linenumber, charnumber)),
+            (linenumber, charnumber, '[') => Ok(Instruction::JumpForward(linenumber, charnumber)),
+            (linenumber, charnumber, ']') => Ok(Instruction::JumpBack(linenumber, charnumber)),
+            (linenumber, charnumber, value) => {
+                Ok(Instruction::Comment(linenumber, charnumber, value))
+            }
         }
     }
 }
@@ -92,9 +97,20 @@ impl Program {
     /// ```
     pub fn new(filename: String, content: &str) -> Self {
         let ins = content
-            .chars()
-            .filter_map(|c| Instruction::try_from(c).ok())
-            .collect();
+            .lines() // Get all the lines
+            .enumerate() // We want go through each line
+            .map(|(linenumber, line)| {
+                line.chars() // Now for each character in the line
+                    .enumerate()
+                    .map(|(charnumber, ch)| {
+                        let source: SourceInput =
+                            (linenumber.clone() + 1, charnumber.clone() + 1, ch); // Create a tuple with line number, character number, and the actual character.
+                        Instruction::try_from(source).ok().unwrap()
+                    })
+                    .collect::<Vec<Instruction>>()
+            })
+            .flatten()
+            .collect::<Vec<Instruction>>();
 
         Program { filename, ins }
     }
@@ -114,14 +130,14 @@ impl fmt::Display for Program {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for ins in self.instructions() {
             let _ = match ins {
-                Instruction::IncrementDP => write!(f, ">"),
-                Instruction::DecrementDP => write!(f, "<"),
-                Instruction::IncrementByte => write!(f, "+"),
-                Instruction::DecrementByte => write!(f, "-"),
-                Instruction::Output => write!(f, "."),
-                Instruction::Input => write!(f, ","),
-                Instruction::JumpForward => write!(f, "["),
-                Instruction::JumpBack => write!(f, "]"),
+                Instruction::IncrementDP(_, _) => write!(f, ">"),
+                Instruction::DecrementDP(_, _) => write!(f, "<"),
+                Instruction::IncrementByte(_, _) => write!(f, "+"),
+                Instruction::DecrementByte(_, _) => write!(f, "-"),
+                Instruction::Output(_, _) => write!(f, "."),
+                Instruction::Input(_, _) => write!(f, ","),
+                Instruction::JumpForward(_, _) => write!(f, "["),
+                Instruction::JumpBack(_, _) => write!(f, "]"),
                 _ => Ok(()),
             };
         }
@@ -143,13 +159,11 @@ mod tests {
         // Now create the program
         let p = Program::new("test.bf".to_string(), &input);
         let ins = p.instructions();
-        assert_eq!(ins[0], Instruction::IncrementDP);
-        assert_eq!(ins[1], Instruction::Comment('\n'));
-        assert_eq!(ins[2], Instruction::DecrementDP);
-        assert_eq!(ins[3], Instruction::IncrementByte);
-        assert_eq!(ins[4], Instruction::DecrementByte);
-        assert_eq!(ins[5], Instruction::Output);
-        assert_eq!(ins[6], Instruction::Input);
-        assert_eq!(ins[7], Instruction::Comment('\n'));
+        assert_eq!(ins[0], Instruction::IncrementDP(1, 1));
+        assert_eq!(ins[1], Instruction::DecrementDP(2, 1));
+        assert_eq!(ins[2], Instruction::IncrementByte(2, 2));
+        assert_eq!(ins[3], Instruction::DecrementByte(2, 3));
+        assert_eq!(ins[4], Instruction::Output(2, 4));
+        assert_eq!(ins[5], Instruction::Input(2, 5));
     }
 }
