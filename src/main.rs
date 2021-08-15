@@ -17,10 +17,7 @@ fn main() -> Result<(), GError> {
 
     program.validate().unwrap();
 
-    let size = match options.cells {
-        Some(value) => value,
-        None => 0,
-    };
+    let size = options.cells.unwrap_or(0);
 
     let vm = VirtualMachine::new(size, options.extensible);
     vm.interpret(&program);
