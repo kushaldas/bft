@@ -2,12 +2,14 @@
 name = "bft"
 version = "0.1.0"
 edition = "2018"
+authors = ["Kushal Das mail@kushaldas.in"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 bft_types = { path = "./bft_types" }
 bft_interp = { path = "./bft_interp" }
+structopt = "0.3.22"
 
 
 
