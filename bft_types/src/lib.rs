@@ -103,8 +103,7 @@ impl Program {
                 line.chars() // Now for each character in the line
                     .enumerate()
                     .map(|(charnumber, ch)| {
-                        let source: SourceInput =
-                            (linenumber.clone() + 1, charnumber.clone() + 1, ch); // Create a tuple with line number, character number, and the actual character.
+                        let source: SourceInput = (linenumber + 1, charnumber + 1, ch); // Create a tuple with line number, character number, and the actual character.
                         Instruction::try_from(source).ok().unwrap()
                     })
                     .collect::<Vec<Instruction>>()
@@ -127,29 +126,38 @@ impl Program {
 
     /// Validates the instructions for bracket matching
     pub fn validate(&self) -> Result<(), std::io::Error> {
-        let mut stack: i32 = 0;
+        let mut stack: Vec<(usize, usize)> = Vec::new();
 
         for instruction in self.ins.iter() {
             match instruction {
-                Instruction::JumpForward(_, _) => {
-                    stack += 1;
+                Instruction::JumpForward(l, c) => {
+                    stack.push((*l, *c));
                 }
-                Instruction::JumpBack(_, _) => {
-                    stack -= 1;
+                Instruction::JumpBack(l, c) => {
+                    // Means extra closing bracket
+                    if stack.is_empty() {
+                        return Err(std::io::Error::new(
+                            std::io::ErrorKind::InvalidInput,
+                            format!("Extra close bracket at line {} character {}.", *l, *c),
+                        ));
+                    } else {
+                        stack.pop();
+                    }
                 }
                 _ => (),
             }
         }
 
-        match stack {
-            0 => Ok(()),
-            _ => {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::InvalidInput,
-                    "Wrong number of brackets",
-                ));
-            }
+        if !stack.is_empty() {
+            // Means extra open brackets in our code
+            let (l, c) = stack.pop().unwrap();
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!("Extra open bracket at line {} character {}.", l, c),
+            ));
         }
+
+        Ok(())
     }
 }
 
