@@ -124,7 +124,11 @@ impl Program {
         &self.ins[..]
     }
 
-    /// Validates the instructions for bracket matching
+    /// Validates the instructions for bracket matching.
+    ///
+    /// For every open braket, there must be a corresponding closing bracket.
+    /// This function makes sure to validate, the brackets, and returns error with the position
+    /// of the bracket in the source code.
     pub fn validate(&self) -> Result<(), std::io::Error> {
         let mut stack: Vec<(usize, usize)> = Vec::new();
 
@@ -183,6 +187,7 @@ impl fmt::Display for Program {
 #[cfg(test)]
 mod tests {
     use crate::{Instruction, Program};
+    use std::io::{Error, ErrorKind};
 
     #[test]
     fn parse_source() {
@@ -200,5 +205,37 @@ mod tests {
         assert_eq!(ins[3], Instruction::DecrementByte(2, 3));
         assert_eq!(ins[4], Instruction::Output(2, 4));
         assert_eq!(ins[5], Instruction::Input(2, 5));
+    }
+
+    #[test]
+    fn parse_extra_closing_bracket() {
+        let input = "[]
+][]"
+        .to_string();
+
+        // Now create the program
+        let p = Program::new("test.bf".to_string(), &input);
+        let error = p.validate().err().unwrap();
+
+        assert_eq!(
+            error.to_string(),
+            "Extra close bracket at line 2 character 1."
+        );
+    }
+
+    #[test]
+    fn parse_extra_opening_bracket() {
+        let input = "[]
+[[[]"
+            .to_string();
+
+        // Now create the program
+        let p = Program::new("test.bf".to_string(), &input);
+        let error = p.validate().err().unwrap();
+        let expected = Error::new(
+            ErrorKind::InvalidInput,
+            "Extra open bracket at line 2 character 2.",
+        );
+        assert_eq!(error.to_string(), expected.to_string());
     }
 }
