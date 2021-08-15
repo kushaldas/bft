@@ -15,6 +15,8 @@ fn main() -> Result<(), GError> {
     let filename = options.program;
     let program = Program::from_file(filename)?;
 
+    program.validate().unwrap();
+
     let size = match options.cells {
         Some(value) => value,
         None => 0,

@@ -124,6 +124,33 @@ impl Program {
     pub fn instructions(&self) -> &[Instruction] {
         &self.ins[..]
     }
+
+    /// Validates the instructions for bracket matching
+    pub fn validate(&self) -> Result<(), std::io::Error> {
+        let mut stack: i32 = 0;
+
+        for instruction in self.ins.iter() {
+            match instruction {
+                Instruction::JumpForward(_, _) => {
+                    stack += 1;
+                }
+                Instruction::JumpBack(_, _) => {
+                    stack -= 1;
+                }
+                _ => (),
+            }
+        }
+
+        match stack {
+            0 => Ok(()),
+            _ => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "Wrong number of brackets",
+                ));
+            }
+        }
+    }
 }
 
 impl fmt::Display for Program {
