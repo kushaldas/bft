@@ -2,6 +2,8 @@
 
 use bft_types::Program;
 
+type VMError = std::io::Error;
+
 /// VirtualMachine holding the cells of the system
 ///
 /// It has the following members:
@@ -61,7 +63,7 @@ impl VirtualMachine {
     }
 
     /// Moves the head to left
-    pub fn move_head_left(&mut self) -> Result<(), std::io::Error> {
+    pub fn move_head_left(&mut self) -> Result<(), VMError> {
         if self.head == 0 {
             // Means already at the beginning
             return Err(std::io::Error::new(
@@ -74,7 +76,7 @@ impl VirtualMachine {
     }
 
     /// Moves the head to right
-    pub fn move_head_right(&mut self) -> Result<(), std::io::Error> {
+    pub fn move_head_right(&mut self) -> Result<(), VMError> {
         if self.head == (self.cells.len() - 1) {
             // Means already at the end
             return Err(std::io::Error::new(
