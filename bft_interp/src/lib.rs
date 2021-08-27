@@ -89,8 +89,27 @@ impl VirtualMachine {
     }
 }
 
+/// Our trait to handle Cell data
+pub trait CellKind {
+    /// We can increase a cell value
+    fn wrapping_increment(&mut self);
+    /// We can decrease a cell value
+    fn wrapping_decrement(&mut self);
+}
+
+/// Implementing for u8
+impl CellKind for u8 {
+    fn wrapping_increment(&mut self) {
+        *self = self.wrapping_add(1);
+    }
+    fn wrapping_decrement(&mut self) {
+        *self = self.wrapping_sub(1);
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use crate::CellKind;
     use crate::VirtualMachine;
 
     #[test]
@@ -124,5 +143,30 @@ mod tests {
             "Already at the beginning of the tape.",
         );
         assert_eq!(res.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn do_u8_increment_big() {
+        let mut num = 255 as u8;
+        num.wrapping_increment();
+        assert_eq!(num, 0);
+    }
+    #[test]
+    fn do_u8_increment_small() {
+        let mut num = 253 as u8;
+        num.wrapping_increment();
+        assert_eq!(num, 254);
+    }
+    #[test]
+    fn do_u8_derement_big() {
+        let mut num = 0 as u8;
+        num.wrapping_decrement();
+        assert_eq!(num, 255);
+    }
+    #[test]
+    fn do_u8_decrement_small() {
+        let mut num = 253 as u8;
+        num.wrapping_decrement();
+        assert_eq!(num, 252);
     }
 }
