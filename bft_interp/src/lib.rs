@@ -1,6 +1,7 @@
 //! The interpreter for the language
 
 use bft_types::Program;
+use std::io::{Read, Seek, Write};
 
 type VMError = std::io::Error;
 
@@ -87,6 +88,30 @@ impl VirtualMachine {
         self.head += 1;
         Ok(())
     }
+
+    /// Reads into current head of the tape
+    ///
+    /// Needs a Reader reference to read from.
+    pub fn input<R>(&mut self, r: &mut R) -> Result<(), VMError>
+    where
+        R: Read,
+    {
+        // Reading only 1 byte at a time
+        let mut buf = vec![0u8; 1];
+        r.read_exact(&mut buf)?;
+        // Now assign the value
+        self.cells[self.head] = buf[0];
+        Ok(())
+    }
+
+    /// Writes one byte from the head of the tape to the Write
+    pub fn output<W>(&self, w: &mut W) -> Result<(), VMError>
+    where
+        W: Write + Seek,
+    {
+        w.write(&[self.cells[self.head]])?;
+        Ok(())
+    }
 }
 
 /// Our trait to handle Cell data
@@ -111,6 +136,29 @@ impl CellKind for u8 {
 mod tests {
     use crate::CellKind;
     use crate::VirtualMachine;
+    use std::io::Cursor;
+
+    #[test]
+    fn take_input_do_output() {
+        let mut vm = VirtualMachine::new(3, false);
+
+        let values: Vec<u8> = vec![42, 2, 1];
+        let mut buff = Cursor::new(values);
+        let res = vm.input(&mut buff);
+        assert_eq!(res.ok(), Some(()));
+
+        {
+            let cells = vm.get_cells();
+            assert_eq!(cells[0], 42);
+        }
+
+        // Now let us test output
+        let mut out_buffer = Cursor::new(Vec::new());
+        let res = vm.output(&mut out_buffer);
+        assert_eq!(res.ok(), Some(()));
+        let o = out_buffer.get_ref()[0];
+        assert_eq!(o, 42);
+    }
 
     #[test]
     fn check_valid_left_right_move() {
