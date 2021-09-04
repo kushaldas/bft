@@ -37,7 +37,7 @@ fn run_bft(options: cli::Opt) -> Result<(), GError> {
 
     let size = options.cells.unwrap_or(0);
 
-    let vm = VirtualMachine::new(size, options.extensible);
+    let mut vm = VirtualMachine::new(size, options.extensible);
     vm.interpret(&program);
     Ok(())
 }

@@ -1,6 +1,6 @@
 //! The interpreter for the language
 
-use bft_types::Program;
+use bft_types::{Instruction, Program};
 use std::io::{Read, Seek, Write};
 
 type VMError = std::io::Error;
@@ -14,7 +14,7 @@ type VMError = std::io::Error;
 /// - cells is a vector holding the memory cells, all initialized with 0.
 /// - ip is the current Instruction Pointer.
 #[derive(Debug)]
-pub struct VirtualMachine {
+pub struct VirtualMachine<'a> {
     /// size of the machine
     size: usize,
     /// Boolean value to tells us if the machine is growable in size or not.
@@ -25,9 +25,11 @@ pub struct VirtualMachine {
     ip: usize, // Instruction pointer
     /// head of the tape
     head: usize,
+    /// The program to interpret
+    prg: Option<&'a Program>,
 }
 
-impl VirtualMachine {
+impl<'a> VirtualMachine<'a> {
     /// Creates a new virtual machine.
     /// You can set a size of the initialized machine, if you pass `0` as value, then it gets
     /// 30000 cells by default.
@@ -45,6 +47,7 @@ impl VirtualMachine {
             cells: vec![0u8, size as u8],
             ip: 0,
             head: 0,
+            prg: None,
         }
     }
 
@@ -59,8 +62,9 @@ impl VirtualMachine {
     }
 
     /// Executes the given program structure
-    pub fn interpret(self, prog: &Program) {
-        println!("{}", prog);
+    pub fn interpret(&mut self, prog: &'a Program) {
+        //println!("{}", prog);
+        self.prg = Some(prog);
     }
 
     /// Moves the head to left
@@ -121,6 +125,75 @@ impl VirtualMachine {
         self.ip += 1;
         Ok(self.ip)
     }
+
+    /// Call this when you see a jump forward
+    pub fn start_loop(&mut self) -> Result<usize, VMError> {
+        let mut stack: Vec<usize> = Vec::new();
+        stack.push(self.ip);
+        // Check if head is 0
+        if self.cells[self.head] == 0 {
+            let ins = self.prg.unwrap().instructions();
+            loop {
+                self.ip += 1;
+                // Now check for the matching closing ]
+                match ins[self.ip] {
+                    Instruction::JumpForward(_, _) => {
+                        // Push the IP value
+                        stack.push(self.ip);
+                    }
+                    Instruction::JumpBack(_, _) => {
+                        // Now we have to pop and see if we are in the right place
+                        stack.pop();
+                        // If the stack is empty means we are at the right place.
+                        if stack.is_empty() {
+                            self.ip += 1;
+                            // Get out of the loop
+                            break;
+                        }
+                    }
+
+                    _ => (),
+                }
+            }
+        } else {
+            self.ip += 1;
+        }
+        Ok(self.ip)
+    }
+    /// Call this when you see a jump back
+    pub fn end_loop(&mut self) -> Result<usize, VMError> {
+        let mut stack: Vec<usize> = Vec::new();
+        stack.push(self.ip);
+        // Check if head is 0
+        if self.cells[self.head] == 0 {
+            let ins = self.prg.unwrap().instructions();
+            loop {
+                self.ip -= 1;
+                // Now check for the matching closing ]
+                match ins[self.ip] {
+                    Instruction::JumpBack(_, _) => {
+                        // Push the IP value
+                        stack.push(self.ip);
+                    }
+                    Instruction::JumpForward(_, _) => {
+                        // Now we have to pop and see if we are in the right place
+                        stack.pop();
+                        // If the stack is empty means we are at the right place.
+                        if stack.is_empty() {
+                            self.ip += 1;
+                            // Get out of the loop
+                            break;
+                        }
+                    }
+
+                    _ => (),
+                }
+            }
+        } else {
+            self.ip += 1;
+        }
+        Ok(self.ip)
+    }
 }
 
 /// Our trait to handle Cell data
@@ -143,9 +216,38 @@ impl CellKind for u8 {
 
 #[cfg(test)]
 mod tests {
+    use bft_types::Program;
+
     use crate::CellKind;
     use crate::VirtualMachine;
     use std::io::Cursor;
+
+    #[test]
+    fn t_jump_forward() {
+        let content = String::from("++> +++++ [<+>-]");
+        let p = Program::new("test.bf".to_string(), &content);
+
+        let mut vm = VirtualMachine::new(3, false);
+        vm.interpret(&p);
+        // now test
+        vm.ip = 10;
+        let ip = vm.start_loop().unwrap();
+        assert_eq!(ip, 16);
+    }
+
+    #[test]
+    fn t_jump_back() {
+        let content = String::from("++> +++++ [<+>-]");
+        let p = Program::new("test.bf".to_string(), &content);
+
+        let mut vm = VirtualMachine::new(3, false);
+        vm.cells = vec![1, 2, 3];
+        vm.interpret(&p);
+        // now test
+        vm.ip = 10;
+        let ip = vm.start_loop().unwrap();
+        assert_eq!(ip, 11);
+    }
 
     #[test]
     fn take_input_do_output() {
