@@ -1,7 +1,7 @@
 //! The interpreter for the language
 
 use bft_types::{Instruction, Program};
-use std::io::{BufRead, Write};
+use std::io::{Read, Write};
 
 type VMError = std::io::Error;
 
@@ -65,7 +65,7 @@ impl VirtualMachine {
     pub fn interpret<R, W>(&mut self, input: &mut R, output: &mut W) -> Result<(), VMError>
     //pub fn interpret(&mut self) -> Result<(), VMError>
     where
-        R: BufRead,
+        R: Read,
         W: Write,
     {
         if self.ip != 0 {
@@ -74,14 +74,15 @@ impl VirtualMachine {
                 "Program already executed.",
             ));
         }
-        let ins = self.prg.instructions().to_vec();
+        let length = self.prg.instructions().len();
 
         loop {
-            if self.ip >= ins.len() {
+            if self.ip >= length {
                 break;
             }
-            //dbg!(&ins[self.ip]);
-            match ins[self.ip] {
+            let ins = self.prg.instructions()[self.ip];
+            //dbg!(ins);
+            match ins {
                 Instruction::IncrementDP(_, _) => {
                     self.head += 1;
                     self.ip += 1
@@ -152,25 +153,13 @@ impl VirtualMachine {
     /// Needs a Reader reference to read from.
     pub fn input<R>(&mut self, r: &mut R) -> Result<usize, VMError>
     where
-        R: BufRead,
+        R: Read,
     {
         // Reading only 1 byte at a time
-        let mut buf = String::new();
-        r.read_line(&mut buf)?;
-
-        let value = buf.trim().parse::<u8>();
-        match value {
-            Ok(val) => {
-                self.cells[self.head] = val;
-                //dbg!(val);
-            }
-            Err(_) => {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    "Not a byte as user input.",
-                ));
-            }
-        }
+        let mut buf = vec![0u8; 1];
+        r.read_exact(&mut buf)?;
+        // Now assign the value
+        self.cells[self.head] = buf[0];
         // Increase IP
         self.ip += 1;
         Ok(self.ip)
@@ -181,8 +170,9 @@ impl VirtualMachine {
     where
         W: Write,
     {
-        dbg!(self.cells[self.head]);
+        //dbg!(self.cells[self.head]);
         w.write_all(&[self.cells[self.head]])?;
+        w.flush().unwrap();
         // Increase IP
         self.ip += 1;
         Ok(self.ip)
@@ -280,7 +270,7 @@ mod tests {
 
     use crate::CellKind;
     use crate::VirtualMachine;
-    use std::io::{BufRead, Cursor};
+    use std::io::Cursor;
 
     fn get_small_program() -> Program {
         let content = String::from("++> +++++ [<+>-]");
@@ -314,7 +304,7 @@ mod tests {
         let p = get_small_program();
         let mut vm = VirtualMachine::new(3, false, p);
 
-        let mut buff = Cursor::new(b"42\n55");
+        let mut buff = Cursor::new(vec![42, 1, 2]);
         let res = vm.input(&mut buff);
         assert_eq!(res.ok(), Some(1));
 
