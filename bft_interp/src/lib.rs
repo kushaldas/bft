@@ -64,7 +64,7 @@ impl VirtualMachine {
     }
 
     /// Moves the head to left
-    pub fn move_head_left(&mut self) -> Result<(), VMError> {
+    pub fn move_head_left(&mut self) -> Result<usize, VMError> {
         if self.head == 0 {
             // Means already at the beginning
             return Err(std::io::Error::new(
@@ -73,11 +73,14 @@ impl VirtualMachine {
             ));
         }
         self.head -= 1;
-        Ok(())
+
+        // Increase IP
+        self.ip += 1;
+        Ok(self.ip)
     }
 
     /// Moves the head to right
-    pub fn move_head_right(&mut self) -> Result<(), VMError> {
+    pub fn move_head_right(&mut self) -> Result<usize, VMError> {
         if self.head == (self.cells.len() - 1) {
             // Means already at the end
             return Err(std::io::Error::new(
@@ -86,13 +89,15 @@ impl VirtualMachine {
             ));
         }
         self.head += 1;
-        Ok(())
+        // Increase IP
+        self.ip += 1;
+        Ok(self.ip)
     }
 
     /// Reads into current head of the tape
     ///
     /// Needs a Reader reference to read from.
-    pub fn input<R>(&mut self, r: &mut R) -> Result<(), VMError>
+    pub fn input<R>(&mut self, r: &mut R) -> Result<usize, VMError>
     where
         R: Read,
     {
@@ -101,16 +106,20 @@ impl VirtualMachine {
         r.read_exact(&mut buf)?;
         // Now assign the value
         self.cells[self.head] = buf[0];
-        Ok(())
+        // Increase IP
+        self.ip += 1;
+        Ok(self.ip)
     }
 
     /// Writes one byte from the head of the tape to the Write
-    pub fn output<W>(&self, w: &mut W) -> Result<(), VMError>
+    pub fn output<W>(&mut self, w: &mut W) -> Result<usize, VMError>
     where
         W: Write + Seek,
     {
         w.write(&[self.cells[self.head]])?;
-        Ok(())
+        // Increase IP
+        self.ip += 1;
+        Ok(self.ip)
     }
 }
 
@@ -145,7 +154,7 @@ mod tests {
         let values: Vec<u8> = vec![42, 2, 1];
         let mut buff = Cursor::new(values);
         let res = vm.input(&mut buff);
-        assert_eq!(res.ok(), Some(()));
+        assert_eq!(res.ok(), Some(1));
 
         {
             let cells = vm.get_cells();
@@ -155,7 +164,7 @@ mod tests {
         // Now let us test output
         let mut out_buffer = Cursor::new(Vec::new());
         let res = vm.output(&mut out_buffer);
-        assert_eq!(res.ok(), Some(()));
+        assert_eq!(res.ok(), Some(2));
         let o = out_buffer.get_ref()[0];
         assert_eq!(o, 42);
     }
