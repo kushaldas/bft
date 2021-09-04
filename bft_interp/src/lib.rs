@@ -14,7 +14,7 @@ type VMError = std::io::Error;
 /// - cells is a vector holding the memory cells, all initialized with 0.
 /// - ip is the current Instruction Pointer.
 #[derive(Debug)]
-pub struct VirtualMachine<'a> {
+pub struct VirtualMachine {
     /// size of the machine
     size: usize,
     /// Boolean value to tells us if the machine is growable in size or not.
@@ -26,16 +26,16 @@ pub struct VirtualMachine<'a> {
     /// head of the tape
     head: usize,
     /// The program to interpret
-    prg: Option<&'a Program>,
+    prg: Program,
 }
 
-impl<'a> VirtualMachine<'a> {
+impl VirtualMachine {
     /// Creates a new virtual machine.
     /// You can set a size of the initialized machine, if you pass `0` as value, then it gets
     /// 30000 cells by default.
     /// If you pass `growable` as true, then the size of the system can grow dynamically.
-    ///
-    pub fn new(size: usize, growable: bool) -> Self {
+    /// You can also pass the program which needs to be running on the virtual machine
+    pub fn new(size: usize, growable: bool, prog: Program) -> Self {
         let size = match size {
             0 => 30000,
             _ => size,
@@ -47,7 +47,7 @@ impl<'a> VirtualMachine<'a> {
             cells: vec![0u8, size as u8],
             ip: 0,
             head: 0,
-            prg: None,
+            prg: prog,
         }
     }
 
@@ -62,9 +62,8 @@ impl<'a> VirtualMachine<'a> {
     }
 
     /// Executes the given program structure
-    pub fn interpret(&mut self, prog: &'a Program) {
+    pub fn interpret(&mut self) {
         //println!("{}", prog);
-        self.prg = Some(prog);
     }
 
     /// Moves the head to left
@@ -132,7 +131,7 @@ impl<'a> VirtualMachine<'a> {
         stack.push(self.ip);
         // Check if head is 0
         if self.cells[self.head] == 0 {
-            let ins = self.prg.unwrap().instructions();
+            let ins = self.prg.instructions();
             loop {
                 self.ip += 1;
                 // Now check for the matching closing ]
@@ -166,7 +165,7 @@ impl<'a> VirtualMachine<'a> {
         stack.push(self.ip);
         // Check if head is 0
         if self.cells[self.head] == 0 {
-            let ins = self.prg.unwrap().instructions();
+            let ins = self.prg.instructions();
             loop {
                 self.ip -= 1;
                 // Now check for the matching closing ]
@@ -222,13 +221,17 @@ mod tests {
     use crate::VirtualMachine;
     use std::io::Cursor;
 
+    fn get_small_program() -> Program {
+        let content = String::from("++> +++++ [<+>-]");
+        Program::new("test.bf".to_string(), &content)
+    }
+
     #[test]
     fn t_jump_forward() {
-        let content = String::from("++> +++++ [<+>-]");
-        let p = Program::new("test.bf".to_string(), &content);
+        let p = get_small_program();
 
-        let mut vm = VirtualMachine::new(3, false);
-        vm.interpret(&p);
+        let mut vm = VirtualMachine::new(3, false, p);
+        vm.interpret();
         // now test
         vm.ip = 10;
         let ip = vm.start_loop().unwrap();
@@ -237,12 +240,10 @@ mod tests {
 
     #[test]
     fn t_jump_back() {
-        let content = String::from("++> +++++ [<+>-]");
-        let p = Program::new("test.bf".to_string(), &content);
-
-        let mut vm = VirtualMachine::new(3, false);
+        let p = get_small_program();
+        let mut vm = VirtualMachine::new(3, false, p);
         vm.cells = vec![1, 2, 3];
-        vm.interpret(&p);
+        vm.interpret();
         // now test
         vm.ip = 10;
         let ip = vm.start_loop().unwrap();
@@ -251,7 +252,8 @@ mod tests {
 
     #[test]
     fn take_input_do_output() {
-        let mut vm = VirtualMachine::new(3, false);
+        let p = get_small_program();
+        let mut vm = VirtualMachine::new(3, false, p);
 
         let values: Vec<u8> = vec![42, 2, 1];
         let mut buff = Cursor::new(values);
@@ -273,7 +275,8 @@ mod tests {
 
     #[test]
     fn check_valid_left_right_move() {
-        let mut vm = VirtualMachine::new(3, false);
+        let p = get_small_program();
+        let mut vm = VirtualMachine::new(3, false, p);
         let _ = vm.move_head_right();
         let _ = vm.move_head_right();
         let _ = vm.move_head_left();
@@ -282,7 +285,8 @@ mod tests {
 
     #[test]
     fn check_invalid_right_move() {
-        let mut vm = VirtualMachine::new(3, false);
+        let p = get_small_program();
+        let mut vm = VirtualMachine::new(3, false, p);
         let _ = vm.move_head_right();
         let _ = vm.move_head_right();
         let _ = vm.move_head_right();
@@ -295,7 +299,8 @@ mod tests {
     }
     #[test]
     fn check_invalid_left_move() {
-        let mut vm = VirtualMachine::new(3, false);
+        let p = get_small_program();
+        let mut vm = VirtualMachine::new(3, false, p);
         let res = vm.move_head_left().err().unwrap();
         let expected = std::io::Error::new(
             std::io::ErrorKind::AddrNotAvailable,
