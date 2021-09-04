@@ -14,7 +14,7 @@ type SourceInput = (usize, usize, char);
 /// 8 single byte long characters as commands/instructions. Every value
 /// also stores the line number, and the column number on the line.
 #[allow(dead_code)]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Instruction {
     /// Increment the data pointer (to point to the next cell to the right).
     IncrementDP(usize, usize),

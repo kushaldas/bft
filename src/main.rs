@@ -38,6 +38,8 @@ fn run_bft(options: cli::Opt) -> Result<(), GError> {
     let size = options.cells.unwrap_or(0);
 
     let mut vm = VirtualMachine::new(size, options.extensible, program);
-    vm.interpret();
+    let mut input = std::io::stdin();
+    let mut out = std::io::stdout();
+    vm.interpret(&mut input, &mut out)?;
     Ok(())
 }

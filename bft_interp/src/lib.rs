@@ -1,7 +1,7 @@
 //! The interpreter for the language
 
 use bft_types::{Instruction, Program};
-use std::io::{Read, Seek, Write};
+use std::io::{Read, Write};
 
 type VMError = std::io::Error;
 
@@ -44,7 +44,7 @@ impl VirtualMachine {
         VirtualMachine {
             size,
             growable,
-            cells: vec![0u8, size as u8],
+            cells: vec![0u8; size],
             ip: 0,
             head: 0,
             prg: prog,
@@ -62,8 +62,57 @@ impl VirtualMachine {
     }
 
     /// Executes the given program structure
-    pub fn interpret(&mut self) {
-        //println!("{}", prog);
+    pub fn interpret<R, W>(&mut self, input: &mut R, output: &mut W) -> Result<(), VMError>
+    //pub fn interpret(&mut self) -> Result<(), VMError>
+    where
+        R: Read,
+        W: Write,
+    {
+        if self.ip != 0 {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "Program already executed.",
+            ));
+        }
+        let ins = self.prg.instructions().to_vec();
+
+        loop {
+            if self.ip >= ins.len() {
+                break;
+            }
+            match ins[self.ip] {
+                Instruction::IncrementDP(_, _) => {
+                    self.head += 1;
+                    self.ip += 1
+                }
+                Instruction::DecrementDP(_, _) => {
+                    self.head -= 1;
+                    self.ip += 1
+                }
+                Instruction::IncrementByte(_, _) => {
+                    self.cells[self.head].wrapping_increment();
+                    self.ip += 1
+                }
+                Instruction::DecrementByte(_, _) => {
+                    self.cells[self.head].wrapping_decrement();
+                    self.ip += 1
+                }
+                Instruction::Output(_, _) => {
+                    let _ = self.output(output);
+                }
+                Instruction::Input(_, _) => {
+                    let _ = self.input(input);
+                }
+                Instruction::JumpForward(_, _) => {
+                    self.start_loop()?;
+                }
+                Instruction::JumpBack(_, _) => {
+                    self.end_loop()?;
+                }
+                Instruction::Comment(_, _, _) => self.ip += 1,
+            }
+        }
+        Ok(())
     }
 
     /// Moves the head to left
@@ -117,9 +166,9 @@ impl VirtualMachine {
     /// Writes one byte from the head of the tape to the Write
     pub fn output<W>(&mut self, w: &mut W) -> Result<usize, VMError>
     where
-        W: Write + Seek,
+        W: Write,
     {
-        w.write(&[self.cells[self.head]])?;
+        w.write_all(&[self.cells[self.head]])?;
         // Increase IP
         self.ip += 1;
         Ok(self.ip)
@@ -127,8 +176,7 @@ impl VirtualMachine {
 
     /// Call this when you see a jump forward
     pub fn start_loop(&mut self) -> Result<usize, VMError> {
-        let mut stack: Vec<usize> = Vec::new();
-        stack.push(self.ip);
+        let mut stack: Vec<usize> = vec![self.ip];
         // Check if head is 0
         if self.cells[self.head] == 0 {
             let ins = self.prg.instructions();
@@ -161,10 +209,9 @@ impl VirtualMachine {
     }
     /// Call this when you see a jump back
     pub fn end_loop(&mut self) -> Result<usize, VMError> {
-        let mut stack: Vec<usize> = Vec::new();
-        stack.push(self.ip);
+        let mut stack: Vec<usize> = vec![self.ip];
         // Check if head is 0
-        if self.cells[self.head] == 0 {
+        if self.cells[self.head] != 0 {
             let ins = self.prg.instructions();
             loop {
                 self.ip -= 1;
@@ -231,7 +278,6 @@ mod tests {
         let p = get_small_program();
 
         let mut vm = VirtualMachine::new(3, false, p);
-        vm.interpret();
         // now test
         vm.ip = 10;
         let ip = vm.start_loop().unwrap();
@@ -243,10 +289,9 @@ mod tests {
         let p = get_small_program();
         let mut vm = VirtualMachine::new(3, false, p);
         vm.cells = vec![1, 2, 3];
-        vm.interpret();
         // now test
-        vm.ip = 10;
-        let ip = vm.start_loop().unwrap();
+        vm.ip = 15;
+        let ip = vm.end_loop().unwrap();
         assert_eq!(ip, 11);
     }
 
