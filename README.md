@@ -9,9 +9,8 @@ Remember to install `just` via `cargo install just`.
 
 ```bash
 cargo run -- add.bf
+7
 ```
-
-It will only print the code right now.
 
 
 ## How to test?

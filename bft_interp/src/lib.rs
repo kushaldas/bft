@@ -1,7 +1,7 @@
 //! The interpreter for the language
 
 use bft_types::{Instruction, Program};
-use std::io::{Read, Write};
+use std::io::{BufRead, Write};
 
 type VMError = std::io::Error;
 
@@ -65,7 +65,7 @@ impl VirtualMachine {
     pub fn interpret<R, W>(&mut self, input: &mut R, output: &mut W) -> Result<(), VMError>
     //pub fn interpret(&mut self) -> Result<(), VMError>
     where
-        R: Read,
+        R: BufRead,
         W: Write,
     {
         if self.ip != 0 {
@@ -80,6 +80,7 @@ impl VirtualMachine {
             if self.ip >= ins.len() {
                 break;
             }
+            //dbg!(&ins[self.ip]);
             match ins[self.ip] {
                 Instruction::IncrementDP(_, _) => {
                     self.head += 1;
@@ -151,13 +152,25 @@ impl VirtualMachine {
     /// Needs a Reader reference to read from.
     pub fn input<R>(&mut self, r: &mut R) -> Result<usize, VMError>
     where
-        R: Read,
+        R: BufRead,
     {
         // Reading only 1 byte at a time
-        let mut buf = vec![0u8; 1];
-        r.read_exact(&mut buf)?;
-        // Now assign the value
-        self.cells[self.head] = buf[0];
+        let mut buf = String::new();
+        r.read_line(&mut buf)?;
+
+        let value = buf.trim().parse::<u8>();
+        match value {
+            Ok(val) => {
+                self.cells[self.head] = val;
+                //dbg!(val);
+            }
+            Err(_) => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "Not a byte as user input.",
+                ));
+            }
+        }
         // Increase IP
         self.ip += 1;
         Ok(self.ip)
@@ -168,6 +181,7 @@ impl VirtualMachine {
     where
         W: Write,
     {
+        dbg!(self.cells[self.head]);
         w.write_all(&[self.cells[self.head]])?;
         // Increase IP
         self.ip += 1;
@@ -266,7 +280,7 @@ mod tests {
 
     use crate::CellKind;
     use crate::VirtualMachine;
-    use std::io::Cursor;
+    use std::io::{BufRead, Cursor};
 
     fn get_small_program() -> Program {
         let content = String::from("++> +++++ [<+>-]");
@@ -300,8 +314,7 @@ mod tests {
         let p = get_small_program();
         let mut vm = VirtualMachine::new(3, false, p);
 
-        let values: Vec<u8> = vec![42, 2, 1];
-        let mut buff = Cursor::new(values);
+        let mut buff = Cursor::new(b"42\n55");
         let res = vm.input(&mut buff);
         assert_eq!(res.ok(), Some(1));
 
